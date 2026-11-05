@@ -250,6 +250,7 @@ const CATEGORIES = {
 let current = 0;
 let answers = new Array(QUESTIONS.length).fill(null);
 let prenom = "", nom = "", groupe = "", email = "";
+let startTime = 0;
 
 function startTest(){
   prenom = document.getElementById('input-prenom').value.trim();
@@ -259,6 +260,7 @@ function startTest(){
   const consent = document.getElementById('input-consent').checked;
   if(!prenom || !nom || !groupe || !email){ alert("يرجى إدخال الاسم الأول واسم العائلة والبريد الإلكتروني واختيار المجموعة للمتابعة."); return; }
   if(!consent){ alert("يرجى تحديد خانة الموافقة للمتابعة."); return; }
+  startTime = Date.now(); // début du chronomètre (non affiché à l'élève)
   document.body.classList.add('in-quiz');
   document.getElementById('step-intro').classList.add('hidden');
   document.getElementById('step-quiz').classList.remove('hidden');
@@ -337,6 +339,8 @@ function hideReview(){
 }
 
 function showResult(){
+  const seconds = Math.round((Date.now()-startTime)/1000);
+  const duration = Math.floor(seconds/60) + " min " + String(seconds%60).padStart(2,"0") + " s";
   document.body.classList.remove('in-quiz');
   document.getElementById('step-quiz').classList.add('hidden');
   document.getElementById('step-result').classList.remove('hidden');
@@ -375,6 +379,7 @@ function showResult(){
         + "\nGroupe : " + groupe
         + "\nScore final : " + score + "/" + QUESTIONS.length
         + "\nNiveau : " + titleFr
+        + "\nTemps : " + duration
         + "\n\nDétail par catégorie :\n"
         + Object.keys(CATEGORIES).map(c=>"- " + CATEGORIES[c].fr + " : " + byCat[c].ok + "/" + byCat[c].total).join("\n")
         + "\n\nDétail par niveau :\n"
