@@ -55,6 +55,7 @@ input[type=email] { direction:ltr; text-align:right; }
 .btn.primary:hover:not(:disabled) { background:var(--green-hover); }
 .btn:disabled { opacity:0.4; cursor:not-allowed; }
 .hidden { display:none !important; }
+.in-quiz .page-title, .in-quiz .site-slogan { display:none; }
 .consent-row { display:flex; align-items:flex-start; gap:10px; margin-top:4px; font-size:14px; color:var(--muted); line-height:1.7; }
 .consent-row input { margin-top:5px; flex-shrink:0; width:16px; height:16px; accent-color:var(--green); }
 
@@ -217,6 +218,7 @@ function startTest(){
   const consent = document.getElementById('input-consent').checked;
   if(!prenom || !email){ alert("يرجى إدخال الاسم الأول والبريد الإلكتروني للمتابعة."); return; }
   if(!consent){ alert("يرجى تحديد خانة الموافقة للمتابعة."); return; }
+  document.body.classList.add('in-quiz');
   document.getElementById('step-intro').classList.add('hidden');
   document.getElementById('step-quiz').classList.remove('hidden');
   document.getElementById('score-total').textContent = QUESTIONS.length;
@@ -226,7 +228,7 @@ function startTest(){
 function renderQuestion(){
   const q = QUESTIONS[current];
   document.getElementById('question-card').innerHTML = `
-    <div class="section-kicker">${CATEGORIES[q.cat].ar} — السؤال ${current+1} من ${QUESTIONS.length}</div>
+    <div class="section-kicker">${CATEGORIES[q.cat].ar}</div>
     <div class="q-text" dir="ltr" lang="en">${q.q}</div>
     <div class="q-help">اختاروا الإجابة الصحيحة:</div>
     <div class="options">
@@ -263,6 +265,7 @@ function nextQuestion(){
 }
 
 function showResult(){
+  document.body.classList.remove('in-quiz');
   document.getElementById('step-quiz').classList.add('hidden');
   document.getElementById('step-result').classList.remove('hidden');
 
