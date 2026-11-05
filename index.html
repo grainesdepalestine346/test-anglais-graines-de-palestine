@@ -33,8 +33,8 @@ main { padding:32px 20px 72px; }
 .intro-box { max-width:700px; margin:0 auto 22px; font-size:16px; line-height:1.9; color:var(--muted); }
 .intro-box b { color:var(--ink); }
 label.field-label { display:block; font-size:14px; color:var(--leaf); font-weight:700; margin-bottom:8px; }
-input.field-input { width:100%; background:var(--field); border:1px solid var(--line); border-radius:8px; padding:12px 14px; color:var(--ink); font:inherit; font-size:16px; margin-bottom:20px; }
-input.field-input:focus { outline:2px solid var(--leaf); outline-offset:1px; border-color:var(--leaf); }
+.field-input { width:100%; min-height:46px; background:var(--field); border:1px solid var(--line); border-radius:8px; padding:12px 14px; color:var(--ink); font:inherit; font-size:16px; margin-bottom:20px; }
+.field-input:focus { outline:2px solid var(--leaf); outline-offset:1px; border-color:var(--leaf); }
 input[type=email] { direction:ltr; text-align:right; }
 .section-kicker { color:var(--leaf); font-size:13px; font-weight:700; margin-bottom:12px; line-height:1.6; }
 .q-text { font-family:'Inter','Segoe UI',Arial,sans-serif; font-size:18px; font-weight:600; line-height:1.4; text-align:left; }
@@ -117,6 +117,16 @@ input[type=email] { direction:ltr; text-align:right; }
         <div class="section-kicker">معلوماتكم</div>
         <label class="field-label" for="input-prenom">الاسم الأول</label>
         <input class="field-input" id="input-prenom" type="text" placeholder="اسمكم الأول" autocomplete="given-name">
+        <label class="field-label" for="input-nom">اسم العائلة</label>
+        <input class="field-input" id="input-nom" type="text" placeholder="اسم عائلتكم" autocomplete="family-name">
+        <label class="field-label" for="input-groupe">مجموعة اللغة الإنجليزية</label>
+        <select class="field-input" id="input-groupe">
+          <option value="">اختاروا مجموعتكم</option>
+          <option value="ANG1">ANG1</option>
+          <option value="ANG2">ANG2</option>
+          <option value="ANG3">ANG3</option>
+          <option value="ANG4">ANG4</option>
+        </select>
         <label class="field-label" for="input-email">البريد الإلكتروني</label>
         <input class="field-input" id="input-email" type="email" placeholder="name@email.com" autocomplete="email">
         <div class="consent-row">
@@ -239,13 +249,15 @@ const CATEGORIES = {
 
 let current = 0;
 let answers = new Array(QUESTIONS.length).fill(null);
-let prenom = "", email = "";
+let prenom = "", nom = "", groupe = "", email = "";
 
 function startTest(){
   prenom = document.getElementById('input-prenom').value.trim();
+  nom = document.getElementById('input-nom').value.trim();
+  groupe = document.getElementById('input-groupe').value;
   email = document.getElementById('input-email').value.trim();
   const consent = document.getElementById('input-consent').checked;
-  if(!prenom || !email){ alert("يرجى إدخال الاسم الأول والبريد الإلكتروني للمتابعة."); return; }
+  if(!prenom || !nom || !groupe || !email){ alert("يرجى إدخال الاسم الأول واسم العائلة والبريد الإلكتروني واختيار المجموعة للمتابعة."); return; }
   if(!consent){ alert("يرجى تحديد خانة الموافقة للمتابعة."); return; }
   document.body.classList.add('in-quiz');
   document.getElementById('step-intro').classList.add('hidden');
@@ -357,14 +369,19 @@ function showResult(){
   if(window.emailjs && EMAILJS_CONFIG.publicKey && EMAILJS_CONFIG.serviceId && EMAILJS_CONFIG.templateId){
     emailjs.init(EMAILJS_CONFIG.publicKey);
     emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, {
-      name: prenom,
+      name: prenom + " " + nom + " (" + groupe + ")",
       email: email,
-      message: "Score : " + score + "/" + QUESTIONS.length
+      message: "Élève : " + prenom + " " + nom
+        + "\nGroupe : " + groupe
+        + "\nScore final : " + score + "/" + QUESTIONS.length
         + "\nNiveau : " + titleFr
         + "\n\nDétail par catégorie :\n"
         + Object.keys(CATEGORIES).map(c=>"- " + CATEGORIES[c].fr + " : " + byCat[c].ok + "/" + byCat[c].total).join("\n")
         + "\n\nDétail par niveau :\n"
-        + Object.keys(LEVELS).map(l=>"- " + l + " : " + byLevel[l].ok + "/" + byLevel[l].total).join("\n"),
+        + Object.keys(LEVELS).map(l=>"- " + l + " : " + byLevel[l].ok + "/" + byLevel[l].total).join("\n")
+        + "\n\nToutes les réponses :\n"
+        + QUESTIONS.map((q,i)=>(i+1) + ". " + q.q + "\n   Réponse : " + q.opts[answers[i]]
+            + (answers[i]===q.correct ? " (juste)" : " (faux, bonne réponse : " + q.opts[q.correct] + ")")).join("\n"),
       time: new Date().toLocaleString('fr-FR')
     }).catch(()=>{});
   }
