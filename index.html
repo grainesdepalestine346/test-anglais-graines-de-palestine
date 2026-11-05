@@ -112,6 +112,7 @@ input[type=email] { direction:ltr; text-align:right; }
       <div class="intro-box">
         يساعدكم هذا الاختبار السريع، الذي يستغرق <b>10 دقائق</b>، على معرفة مستواكم في اللغة الإنجليزية. أجيبوا بعفوية!
         <p class="first-try"><b>تنبيه:</b> تُحتسب المحاولة الأولى فقط، ولن تُؤخذ أي إعادة للاختبار بعين الاعتبار.</p>
+        <p class="first-try"><b>ملاحظة تقنية:</b> لكي يعمل الاختبار بشكل صحيح، يجب أن تبقى هذه الصفحة مفتوحة حتى نهايته. إن فتح علامة تبويب جديدة أو مغادرة الصفحة ثم العودة إليها يجعل الاختبار غير صالح. هذا مجرد قيد تقني، لذا يُرجى تخصيص وقت كافٍ وإكمال الاختبار دفعة واحدة.</p>
       </div>
       <div class="card">
         <div class="section-kicker">معلوماتكم</div>
@@ -133,6 +134,10 @@ input[type=email] { direction:ltr; text-align:right; }
           <input type="checkbox" id="input-consent">
           <label for="input-consent">أوافق على أن تحتفظ جمعية Graines de Palestine ببيانات الاتصال الخاصة بي للتواصل معي بشأن نتيجتي.</label>
         </div>
+        <div class="consent-row" style="margin-top:10px;">
+          <input type="checkbox" id="input-consent-data">
+          <label for="input-consent-data">أفهم أن إغلاق الصفحة أو فتح علامة تبويب جديدة أثناء الاختبار يجعل الاختبار غير صالح.</label>
+        </div>
         <div class="btn-row" style="justify-content:flex-start; margin-top:20px;">
           <button class="btn primary" id="btn-start" type="button" onclick="startTest()">ابدؤوا الاختبار ◀</button>
         </div>
@@ -144,7 +149,6 @@ input[type=email] { direction:ltr; text-align:right; }
       <div class="progress-bar-wrap">
         <div class="progress-label">
           <span id="progress-text"></span>
-          <span>الوقت: <bdi dir="ltr" id="timer">0:00</bdi></span>
           <span id="progress-pct">0%</span>
         </div>
         <div class="progress-bar-bg"><div class="progress-bar" id="progress-bar"></div></div>
@@ -251,11 +255,43 @@ const CATEGORIES = {
 let current = 0;
 let answers = new Array(QUESTIONS.length).fill(null);
 let prenom = "", nom = "", groupe = "", email = "";
-let startTime = 0, timerId = null;
+let startTime = 0;
 
-function updateTimer(){
-  const seconds = Math.floor((Date.now()-startTime)/1000);
-  document.getElementById('timer').textContent = Math.floor(seconds/60) + ":" + String(seconds%60).padStart(2,"0");
+// Suivi invisible, actif uniquement entre le début et la fin du test
+const track = { active:false, leaves:0, hiddenMs:0, hiddenStart:0, inactive:0, blurred:false, leftDuringBlur:false, started:1 };
+
+document.addEventListener('visibilitychange', ()=>{
+  if(!track.active) return;
+  if(document.visibilityState === 'hidden'){
+    track.leaves++;
+    track.hiddenStart = Date.now();
+    track.leftDuringBlur = true;
+  } else if(track.hiddenStart){
+    track.hiddenMs += Date.now() - track.hiddenStart;
+    track.hiddenStart = 0;
+  }
+});
+window.addEventListener('blur', ()=>{
+  if(track.active) track.blurred = true;
+});
+window.addEventListener('focus', ()=>{
+  if(track.active && track.blurred && !track.leftDuringBlur) track.inactive++;
+  track.blurred = false;
+  track.leftDuringBlur = false;
+});
+
+// Nombre de tests commencés sur cet appareil et ce navigateur
+function countStart(){
+  try {
+    const n = (parseInt(localStorage.getItem('gdp_tests_commences'),10) || 0) + 1;
+    localStorage.setItem('gdp_tests_commences', String(n));
+    return n;
+  } catch(e) { return 1; }
+}
+
+function formatDuration(ms){
+  const seconds = Math.round(ms/1000);
+  return Math.floor(seconds/60) + " min " + String(seconds%60).padStart(2,"0") + " s";
 }
 
 function startTest(){
@@ -263,11 +299,12 @@ function startTest(){
   nom = document.getElementById('input-nom').value.trim();
   groupe = document.getElementById('input-groupe').value;
   email = document.getElementById('input-email').value.trim();
-  const consent = document.getElementById('input-consent').checked;
+  const consent = document.getElementById('input-consent').checked && document.getElementById('input-consent-data').checked;
   if(!prenom || !nom || !groupe || !email){ alert("يرجى إدخال الاسم الأول واسم العائلة والبريد الإلكتروني واختيار المجموعة للمتابعة."); return; }
-  if(!consent){ alert("يرجى تحديد خانة الموافقة للمتابعة."); return; }
-  startTime = Date.now(); // début du chronomètre
-  timerId = setInterval(updateTimer, 1000);
+  if(!consent){ alert("يرجى تحديد خانتي الموافقة للمتابعة."); return; }
+  startTime = Date.now(); // chronomètre invisible : le temps est envoyé uniquement dans le mail
+  track.active = true;
+  track.started = countStart();
   document.body.classList.add('in-quiz');
   document.getElementById('step-intro').classList.add('hidden');
   document.getElementById('step-quiz').classList.remove('hidden');
@@ -346,9 +383,11 @@ function hideReview(){
 }
 
 function showResult(){
-  clearInterval(timerId);
-  const seconds = Math.round((Date.now()-startTime)/1000);
-  const duration = Math.floor(seconds/60) + " min " + String(seconds%60).padStart(2,"0") + " s";
+  track.active = false;
+  const duration = formatDuration(Date.now()-startTime);
+  const validity = track.leaves > 0 ? "INVALIDE (l'élève a quitté la page)"
+    : (track.inactive > 0 || track.started > 1) ? "À VÉRIFIER"
+    : "VALIDE";
   document.body.classList.remove('in-quiz');
   document.getElementById('step-quiz').classList.add('hidden');
   document.getElementById('step-result').classList.remove('hidden');
@@ -388,6 +427,10 @@ function showResult(){
         + "\nScore final : " + score + "/" + QUESTIONS.length
         + "\nNiveau : " + titleFr
         + "\nTemps : " + duration
+        + "\n\nValidité du test : " + validity
+        + "\n- Sorties de la page (onglet, application, écran verrouillé) : " + track.leaves + (track.leaves ? " (" + formatDuration(track.hiddenMs) + " hors de la page)" : "")
+        + "\n- Fenêtre inactive sans quitter la page : " + track.inactive
+        + "\n- Tests commencés sur cet appareil : " + track.started
         + "\n\nDétail par catégorie :\n"
         + Object.keys(CATEGORIES).map(c=>"- " + CATEGORIES[c].fr + " : " + byCat[c].ok + "/" + byCat[c].total).join("\n")
         + "\n\nDétail par niveau :\n"
